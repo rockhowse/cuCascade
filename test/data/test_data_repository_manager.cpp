@@ -73,14 +73,6 @@ class mock_data_representation : private mock_memory_space_holder, public idata_
 
   std::size_t get_size_in_bytes() const override { return _size; }
 
-  std::unique_ptr<idata_representation> convert_to_memory_space(
-    const memory::memory_space* target_memory_space,
-    rmm::cuda_stream_view stream = rmm::cuda_stream_default) override
-  {
-    // Empty implementation for testing
-    return nullptr;
-  }
-
  private:
   size_t _size;
 };

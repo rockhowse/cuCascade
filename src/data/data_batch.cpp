@@ -106,18 +106,6 @@ void data_batch::set_data(std::unique_ptr<idata_representation> data)
   _data = std::move(data);
 }
 
-void data_batch::convert_to_memory_space(const cucascade::memory::memory_space* target_memory_space,
-                                         rmm::cuda_stream_view stream)
-{
-  std::lock_guard<std::mutex> lock(_mutex);
-
-  if (_processing_count != 0) {
-    throw std::runtime_error("Cannot convert memory space while there is active processing");
-  }
-  auto new_representation = _data->convert_to_memory_space(target_memory_space, stream);
-  _data                   = std::move(new_representation);
-}
-
 bool data_batch::try_to_lock_for_processing()
 {
   std::lock_guard<std::mutex> lock(_mutex);

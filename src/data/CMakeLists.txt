@@ -21,4 +21,5 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/data_batch.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/data_repository.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/data_repository_manager.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/gpu_data_representation.cpp)
+          ${CMAKE_CURRENT_SOURCE_DIR}/gpu_data_representation.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/representation_converter.cpp)

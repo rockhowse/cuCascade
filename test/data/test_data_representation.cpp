@@ -18,6 +18,7 @@
 #include "data/common.hpp"
 #include "data/cpu_data_representation.hpp"
 #include "data/gpu_data_representation.hpp"
+#include "data/representation_converter.hpp"
 #include "memory/common.hpp"
 #include "memory/fixed_size_host_memory_resource.hpp"
 #include "memory/host_table.hpp"
@@ -104,6 +105,7 @@ static void initialize_memory_for_conversions()
   configs.emplace_back(
     Tier::HOST, 0, 4096ull * 1024 * 1024, make_default_allocator_for_tier(Tier::HOST));
   memory_reservation_manager::initialize(std::move(configs));
+  register_builtin_converters();
 }
 
 // =============================================================================
@@ -181,9 +183,10 @@ TEST_CASE("host_table_representation converts to GPU and preserves contents",
 
   // Convert to GPU and compare cudf tables
   auto gpu_stream = gpu_space->acquire_stream();
-  auto gpu_any    = host_repr.convert_to_memory_space(gpu_space, pack_stream);
+  auto& registry  = representation_converter_registry::instance();
+  auto gpu_any    = registry.convert<gpu_table_representation>(host_repr, gpu_space, pack_stream);
   pack_stream.synchronize();
-  auto& gpu_repr = gpu_any->cast<gpu_table_representation>();
+  auto& gpu_repr = *gpu_any;
   // Compare using the same stream used for conversion to avoid cross-stream hazards
   cucascade::test::expect_cudf_tables_equal_on_stream(
     original, gpu_repr.get_table(), pack_stream.view());
@@ -298,10 +301,11 @@ TEST_CASE("gpu->host->gpu roundtrip preserves cudf table contents", "[gpu_data_r
 
   // Use one stream for both conversions to enforce order
   auto chain_stream = gpu_space->acquire_stream();
-  auto cpu_any      = repr.convert_to_memory_space(host_space, chain_stream);
-  auto gpu_any      = cpu_any->convert_to_memory_space(gpu_space, chain_stream);
+  auto& registry    = representation_converter_registry::instance();
+  auto cpu_any      = registry.convert<host_table_representation>(repr, host_space, chain_stream);
+  auto gpu_any      = registry.convert<gpu_table_representation>(*cpu_any, gpu_space, chain_stream);
 
-  auto& back = gpu_any->cast<gpu_table_representation>();
+  auto& back = *gpu_any;
   chain_stream.synchronize();
   cucascade::test::expect_cudf_tables_equal_on_stream(
     repr.get_table(), back.get_table(), chain_stream);
@@ -348,8 +352,9 @@ TEST_CASE("gpu cross-device conversion when multiple GPUs are available",
 
   // Use a single stream for the peer copy
   auto xfer_stream = src_space->acquire_stream();
-  auto dst_any     = src_repr.convert_to_memory_space(dst_space, xfer_stream);
-  auto& dst_repr   = dst_any->cast<gpu_table_representation>();
+  auto& registry   = representation_converter_registry::instance();
+  auto dst_any     = registry.convert<gpu_table_representation>(src_repr, dst_space, xfer_stream);
+  auto& dst_repr   = *dst_any;
 
   // Compare content equality using the same stream used for transfer
   cucascade::test::expect_cudf_tables_equal_on_stream(
